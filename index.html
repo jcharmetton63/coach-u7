@@ -141,7 +141,7 @@ button{min-height:42px;border-radius:12px}
   <div class="card" id="currentStatsCard">
     <div class="section"><span>📊 Match en cours</span><span class="pill">LIVE</span></div>
     <div class="stats-head"><span>JOUEUR</span><span>JEU</span><span>🧤 GARD.</span></div>
-    <div id="stats"></div>
+    <div id="currentStats"></div>
     <div id="scorers"></div>
   </div>
 </section>
@@ -157,7 +157,7 @@ if(!M)M={players:[],cfg:{event:'',opponent:'',duration:10,ppt:5},sec:0,run:false
 M.cfg=M.cfg||{event:'',opponent:'',duration:10,ppt:5};
 M.players=Array.isArray(M.players)?M.players:[];M.goals=Array.isArray(M.goals)?M.goals:[];M.score=+M.score||0;M.oppScore=+M.oppScore||0;
 let history=JSON.parse(localStorage.getItem('cu7history')||'[]');if(!Array.isArray(history))history=[];
-let last=Date.now(),outId=null,expandedHistory=null;
+let last=Date.now(),outId=null,expandedHistory=null,expandedOpponents={};
 function saveRoster(){localStorage.setItem('cu7roster',JSON.stringify(roster))}
 function saveMatch(){localStorage.setItem('cu7match',JSON.stringify(M))}
 function saveHistory(){localStorage.setItem('cu7history',JSON.stringify(history))}
@@ -198,11 +198,19 @@ function finishMatch(){if(!M.cfg.opponent)return toast('Aucun match à enregistr
 function newMatch(){M={players:[],cfg:{event:'',opponent:'',duration:10,ppt:5},sec:0,run:false,score:0,oppScore:0,goals:[]};saveMatch();$('event').value='';$('opponent').value='';$('duration').value=10;$('durationValue').textContent='10';$('ppt').value=5;go('home');toast('Nouveau match prêt — effectif conservé')}
 function deleteHistory(id){if(!confirm('Supprimer définitivement ce match et ses statistiques ?'))return;history=history.filter(x=>x.id!==id);saveHistory();expandedHistory=null;renderStats();toast('Match supprimé')}
 function showHistory(id){expandedHistory=expandedHistory===id?null:id;renderStats()}
+function toggleOpponent(name){expandedOpponents[name]=!expandedOpponents[name];renderStats()}
 function historyDetail(rec){return '<div class="history-detail"><div class="stats-head"><span>JOUEUR</span><span>JEU</span><span>🧤 GARD.</span></div>'+rec.players.map(p=>`<div class="stats-row"><div class="stats-player"><div class="avatar">${p.num}</div><div class="grow"><div class="stats-main">${p.n}</div><div class="stats-sub">${p.g?'⚽ '+p.g+' but'+(p.g>1?'s':''):''}</div></div></div><div class="stats-time">${fmt(p.t)}</div><div class="stats-time gk">${fmt(p.kt)}</div></div>`).join('')+(rec.goals.length?'<div class="small" style="margin-top:8px">⚽ '+rec.goals.map(g=>g.n+' ('+fmt(g.time)+')').join(' · ')+'</div>':'<div class="small" style="margin-top:8px">Aucun but</div>')+'</div>'}
 function renderStats(){
  $('historyCount').textContent=history.length+' match'+(history.length>1?'s':'');
- $('historyList').innerHTML=history.length?history.map(rec=>{let d=new Date(rec.date);return `<div class="history-item"><div class="history-top"><div><div class="history-match">FC Riom ${rec.score} — ${rec.oppScore||0} ${rec.opponent}</div><div class="history-meta">${rec.event} · ${d.toLocaleDateString('fr-FR')} · ${rec.duration} min</div></div><span class="pill">${rec.players.length} joueurs</span></div><div class="history-actions"><button class="secondary" onclick="showHistory('${rec.id}')">${expandedHistory===rec.id?'Masquer':'Voir les stats'}</button><button class="danger" onclick="deleteHistory('${rec.id}')">🗑️ Supprimer</button></div>${expandedHistory===rec.id?historyDetail(rec):''}</div>`}).join(''):'<div class="empty">Aucun match enregistré. À la fin d’un match, appuie sur « Terminer et enregistrer ».</div>';
- $('stats').innerHTML=M.players.length?M.players.map(p=>`<div class="stats-row"><div class="stats-player"><div class="avatar">${p.num}</div><div class="grow"><div class="stats-main">${p.n}</div><div class="stats-sub">${p.on?'Sur le terrain':'Remplaçant'}${p.g?' · ⚽ '+p.g:''}</div></div></div><div class="stats-time">${fmt(p.t)}</div><div class="stats-time gk">${fmt(p.kt)}</div></div>`).join(''):'<div class="empty">Aucun match en cours.</div>';
+ if(!history.length){$('historyList').innerHTML='<div class="empty">Aucun match enregistré. À la fin d’un match, appuie sur « Terminer et enregistrer ».</div>'}
+ else {
+  const groups={};history.forEach(rec=>{const name=(rec.opponent||'Adversaire non renseigné').trim();(groups[name]||(groups[name]=[])).push(rec)});
+  $('historyList').innerHTML=Object.keys(groups).sort((a,b)=>a.localeCompare(b,'fr')).map(name=>{
+   const matches=groups[name],opened=!!expandedOpponents[name];
+   return `<div class="opponent-group"><button class="opponent-toggle" onclick="toggleOpponent(${JSON.stringify(name).replace(/</g,'\\u003c')})"><span class="tree-arrow">${opened?'▾':'▸'}</span><span class="opponent-name">${name}</span><span class="pill">${matches.length} match${matches.length>1?'s':''}</span></button>${opened?`<div class="opponent-matches">${matches.map(rec=>{let d=new Date(rec.date);return `<div class="history-item"><div class="history-top"><div><div class="history-match">FC Riom ${rec.score} — ${rec.oppScore||0} ${name}</div><div class="history-meta">${rec.event} · ${d.toLocaleDateString('fr-FR')} · ${rec.duration} min</div></div><span class="pill">${rec.players.length} joueurs</span></div><div class="history-actions"><button class="secondary" onclick="showHistory('${rec.id}')">${expandedHistory===rec.id?'Masquer':'Voir les stats'}</button><button class="danger" onclick="deleteHistory('${rec.id}')">🗑️ Supprimer</button></div>${expandedHistory===rec.id?historyDetail(rec):''}</div>`}).join('')}</div>`:''}</div>`
+  }).join('');
+ }
+ $('currentStats').innerHTML=M.players.length?M.players.map(p=>`<div class="stats-row"><div class="stats-player"><div class="avatar">${p.num}</div><div class="grow"><div class="stats-main">${p.n}</div><div class="stats-sub">${p.on?'Sur le terrain':'Remplaçant'}${p.g?' · ⚽ '+p.g:''}</div></div></div><div class="stats-time">${fmt(p.t)}</div><div class="stats-time gk">${fmt(p.kt)}</div></div>`).join(''):'<div class="empty">Aucun match en cours.</div>';
  $('scorers').innerHTML=M.goals.length?'<div class="info">⚽ '+M.goals.map(g=>g.n+' · '+fmt(g.time)).join(' &nbsp; ')+'</div>':'';
 }
 function renderAll(){syncInputs();renderRoster();renderMatchSelect();renderTeam();renderLive();renderStats()}
@@ -211,3 +219,12 @@ function syncInputs(){if($('event'))$('event').value=M.cfg.event||'';if($('oppon
 function showM(){$('modal').classList.add('show')}function closeM(){$('modal').classList.remove('show');outId=null}
 renderAll();
 </script></body></html>
+
+<style>
+.opponent-group{border:1px solid #dbe5e0;border-radius:12px;margin:7px 0;overflow:hidden;background:#fff}
+.opponent-toggle{width:100%;display:flex;align-items:center;gap:8px;text-align:left;padding:11px 10px;background:#f2f6fb;border:0;color:#1B376B;min-height:48px}
+.opponent-toggle .tree-arrow{font-size:18px;font-weight:900;width:15px}
+.opponent-name{font-weight:950;flex:1}
+.opponent-matches{padding:0 9px}
+.opponent-matches .history-item{padding:10px 0}
+</style>
