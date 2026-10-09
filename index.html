@@ -156,6 +156,10 @@ button{min-height:42px;border-radius:12px}
     <div class="section"><span>📚 Historique des matchs</span><span class="hint" id="historyCount">0 match</span></div>
     <div id="historyList"></div>
   </div>
+  <div class="card">
+    <div class="section"><span>⏱️ Historique des temps de jeu</span><span class="hint">Par date</span></div>
+    <div id="playingTimeHistory"></div>
+  </div>
 </section>
 </main>
 <nav class="nav"><button class="active" data-s="home" onclick="go('home')">🏠<br>Accueil</button><button data-s="rosterScreen" onclick="go('rosterScreen')">👦<br>Effectif</button><button data-s="team" onclick="go('team')">⚽<br>Composition</button><button data-s="live" onclick="go('live')">⚡<br>Live</button><button data-s="stats" onclick="go('stats')">📊<br>Stats</button></nav><div class="toast" id="toast"></div><div class="modal" id="modal"><div class="sheet" id="sheet"></div></div></div>
@@ -211,7 +215,25 @@ function deleteHistory(id){if(!confirm('Supprimer définitivement ce match et se
 function showHistory(id){expandedHistory=expandedHistory===id?null:id;renderStats()}
 function toggleOpponent(name){expandedOpponents[name]=!expandedOpponents[name];renderStats()}
 function historyDetail(rec){return '<div class="history-detail"><div class="stats-head"><span>JOUEUR</span><span>JEU</span><span>🧤 GARD.</span></div>'+rec.players.map(p=>`<div class="stats-row"><div class="stats-player"><div class="avatar">${p.num}</div><div class="grow"><div class="stats-main">${p.n}</div><div class="stats-sub">${p.g?'⚽ '+p.g+' but'+(p.g>1?'s':''):''}</div></div></div><div class="stats-time">${fmt(p.t)}</div><div class="stats-time gk">${fmt(p.kt)}</div></div>`).join('')+(rec.goals.length?'<div class="small" style="margin-top:8px">⚽ '+rec.goals.map(g=>g.n+' ('+fmt(g.time)+')').join(' · ')+'</div>':'<div class="small" style="margin-top:8px">Aucun but</div>')+'</div>'}
+function renderPlayingTimeHistory(){
+ const target=$('playingTimeHistory'); if(!target)return;
+ if(!history.length){target.innerHTML='<div class="empty">Les temps de jeu apparaîtront ici après l’enregistrement d’un match.</div>';return;}
+ const byDate={};
+ history.forEach(rec=>{const d=new Date(rec.date);if(Number.isNaN(d.getTime()))return;const key=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');(byDate[key]||(byDate[key]={date:d,matches:[]})).matches.push(rec)});
+ const keys=Object.keys(byDate).sort((a,b)=>b.localeCompare(a));
+ target.innerHTML=keys.map(key=>{
+  const day=byDate[key], players={};
+  day.matches.forEach(rec=>rec.players.forEach(p=>{
+   const id=p.rid||p.id||p.n;const x=players[id]||(players[id]={name:p.n,num:p.num,field:0,keeper:0,matches:[]});
+   const keeper=Math.max(0,Number(p.kt)||0), total=Math.max(0,Number(p.t)||0), field=Math.max(0,total-keeper);
+   x.field+=field;x.keeper+=keeper;x.matches.push({opponent:rec.opponent||'Adversaire',event:rec.event||'Match',field,keeper,total});
+  }));
+  const rows=Object.values(players).sort((a,b)=>a.name.localeCompare(b.name,'fr')).map(p=>`<div class="history-item"><div class="history-top"><div class="stats-player"><div class="avatar">${p.num||'⚽'}</div><div class="grow"><div class="stats-main">${p.name}</div><div class="stats-sub">${p.matches.map(m=>`${m.event} vs ${m.opponent}: champ ${fmt(m.field)} · gardien ${fmt(m.keeper)}`).join('<br>')}</div></div></div><div style="text-align:right;white-space:nowrap"><div style="font-size:11px;color:#1B376B;font-weight:900">⚽ ${fmt(p.field)}</div><div style="font-size:11px;color:#8a6100;font-weight:900">🧤 ${fmt(p.keeper)}</div><div style="font-size:12px;font-weight:950;margin-top:4px">Total ${fmt(p.field+p.keeper)}</div></div></div></div>`).join('');
+  return `<div class="history-item"><div class="section" style="margin-top:4px"><span>📅 ${day.date.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</span><span class="pill">${day.matches.length} match${day.matches.length>1?'s':''}</span></div>${rows||'<div class="empty">Aucune donnée de temps de jeu.</div>'}</div>`;
+ }).join('');
+}
 function renderStats(){
+ renderPlayingTimeHistory();
  $('historyCount').textContent=history.length+' match'+(history.length>1?'s':'');
  if(!history.length){$('historyList').innerHTML='<div class="empty">Aucun match enregistré. À la fin d’un match, appuie sur « Terminer et enregistrer ».</div>'}
  else {
