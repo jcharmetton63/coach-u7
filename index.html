@@ -16,7 +16,7 @@
 .stats-player{display:flex;gap:8px;align-items:center;min-width:0}
 .stats-player .avatar{flex:0 0 38px}
 .stats-time{font-variant-numeric:tabular-nums;font-weight:950;text-align:center}
-.stats-time.gk{background:#fff8dc;color:#8a6100;border-radius:10px;padding:7px 4px}
+.stats-time.gk{background:#fff8dc;color:#1B376B;border-radius:10px;padding:7px 4px}
 .stats-main{font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stats-sub{font-size:10px;color:var(--muted);font-weight:700}
 
@@ -126,7 +126,7 @@ button{min-height:42px;border-radius:12px}
       <button class="primary act" id="chrono" onclick="toggle()">▶ Démarrer</button>
     </div>
     <div class="liveactions"><div class="three"><button class="primary act" onclick="openSubs()"><span>🔄</span>Changer</button><button class="primary act" onclick="openGoal()"><span>⚽</span>But</button><button class="blue act" onclick="opponentGoal()"><span>🥅</span>Adv.</button><button class="yellow act" onclick="openKeeper()"><span>🧤</span>Gardien</button></div></div>
-    <div class="bench-title"><span>BANC</span><span class="hint" id="benchHint"></span></div><div class="bench" id="bench"></div>
+    <div class="bench" id="bench"></div>
     <button class="danger full finish-btn" onclick="finishMatch()">🏁 Terminer et enregistrer le match</button>
   </div>
   <div class="card" id="currentStatsCard">
@@ -187,7 +187,7 @@ function toggleStarter(rid){let p=M.players.find(x=>x.rid===rid);if(!p)return;if
 function setKeeper(id){let p=M.players.find(x=>x.rid===id);if(!p||!p.on)return;M.players.forEach(x=>x.k=false);p.k=true;saveMatch();renderTeam();renderLive();toast('🧤 '+p.n+' est gardien')}
 function renderPitch(id){let pitch=$(id);if(!pitch)return;pitch.querySelectorAll('.fp').forEach(e=>e.remove());M.players.filter(p=>p.on).forEach(p=>{let e=document.createElement('div');e.className='fp '+(p.k?'keeper':'');e.style.left=p.x+'%';e.style.top=p.y+'%';e.innerHTML='<div class="token">'+p.num+'</div><div class="fname">'+p.n+'</div>';drag(e,p,id);pitch.appendChild(e)})}
 function drag(el,p,pitchId){let sx,sy,ox,oy;el.addEventListener('pointerdown',e=>{e.preventDefault();sx=e.clientX;sy=e.clientY;ox=p.x;oy=p.y;el.setPointerCapture(e.pointerId);const mv=v=>{let r=$(pitchId).getBoundingClientRect();p.x=Math.max(9,Math.min(91,ox+(v.clientX-sx)/r.width*100));p.y=Math.max(9,Math.min(91,oy+(v.clientY-sy)/r.height*100));el.style.left=p.x+'%';el.style.top=p.y+'%'};const up=()=>{el.removeEventListener('pointermove',mv);el.removeEventListener('pointerup',up);saveMatch()};el.addEventListener('pointermove',mv);el.addEventListener('pointerup',up)})}
-function renderLive(){renderPitch('pitch');$('liveOpp').textContent=M.cfg.opponent||'ADVERSAIRE';$('liveEvent').textContent=M.cfg.event||'MATCH';$('score').textContent=(M.score||0)+' — '+(M.oppScore||0);$('timer').textContent=fmt(M.sec);/* Le sous-titre de la bannière reste toujours « Coach U7 ». */$('chrono').textContent=M.run?'⏸ Faire pause':'▶ '+(M.sec?'Reprendre':'Démarrer');$('chrono').disabled=!!M.finished;$('chrono').style.display=M.finished?'none':'';const finishBtn=document.querySelector('.finish-btn');if(finishBtn)finishBtn.style.display=M.finished?'none':'';const liveStats=$('currentStatsCard');if(liveStats)liveStats.style.display=M.finished?'none':'';$('bench').innerHTML=M.players.filter(p=>!p.on).map(p=>`<button class="blue" onclick="quickEnter('${p.rid}')">＋ ${p.n}</button>`).join('');$('benchHint').textContent=M.players.filter(p=>!p.on).length+' disponible'+(M.players.filter(p=>!p.on).length>1?'s':'');renderStats()}
+function renderLive(){renderPitch('pitch');$('liveOpp').textContent=M.cfg.opponent||'ADVERSAIRE';$('liveEvent').textContent=M.cfg.event||'MATCH';$('score').textContent=(M.score||0)+' — '+(M.oppScore||0);$('timer').textContent=fmt(M.sec);/* Le sous-titre de la bannière reste toujours « Coach U7 ». */$('chrono').textContent=M.run?'⏸ Faire pause':'▶ '+(M.sec?'Reprendre':'Démarrer');$('chrono').disabled=!!M.finished;$('chrono').style.display=M.finished?'none':'';const finishBtn=document.querySelector('.finish-btn');if(finishBtn)finishBtn.style.display=M.finished?'none':'';const liveStats=$('currentStatsCard');if(liveStats)liveStats.style.display=M.finished?'none':'';$('bench').innerHTML=M.players.filter(p=>!p.on).map(p=>`<button class="blue" onclick="quickEnter('${p.rid}')">＋ ${p.n}</button>`).join('');renderStats()}
 function quickEnter(rid){let off=M.players.find(p=>p.rid===rid);let on=M.players.filter(p=>p.on);let a=on.sort((x,y)=>x.t-y.t).find(p=>!p.k)||on[0];if(!a||!off)return toast('Aucun joueur à sortir');a.on=false;a.k=false;off.on=true;off.role='field';let s=formationPositions()[M.players.filter(p=>p.on).length-1]||[50,50];off.x=s[0];off.y=s[1];if(!M.players.some(p=>p.k&&p.on))M.players.find(p=>p.on).k=true;saveMatch();renderLive();renderTeam();toast(a.n+' ➜ '+off.n)}
 function openSubs(){let on=M.players.filter(p=>p.on),off=M.players.filter(p=>!p.on);$('sheet').innerHTML='<h2>🔄 Remplacement</h2><div class="small">Choisis le sortant puis le remplaçant.</div><div class="choices">'+on.map(p=>`<button class="secondary" onclick="chooseOut('${p.rid}')">${p.n}<br><span class="small">${fmt(p.t)}</span></button>`).join('')+'</div><div class="choices">'+off.map(p=>`<button class="blue" onclick="subIn('${p.rid}')">${p.n}</button>`).join('')+'</div><button class="secondary full" onclick="closeM()">Fermer</button>';showM()}
 function chooseOut(rid){outId=rid;toast('Sortant sélectionné')}
@@ -237,3 +237,5 @@ renderAll();
 .opponent-matches{padding:0 9px}
 .opponent-matches .history-item{padding:10px 0}
 </style>
+
+<style>/* Lisibilité du temps passé dans les buts */ .live-player-row .stats-time.gk{color:#1B376B!important;font-weight:950;background:#fff8dc;border-radius:10px;padding:7px 4px}</style>
